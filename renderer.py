@@ -11,7 +11,7 @@ class RgbRenderer(nn.Module):
         raster_settings = RasterizationSettings(
             image_size=(H, W),
             blur_radius=0.0,
-            faces_per_pixel=20,
+            faces_per_pixel=10,
         )
         
         self.rasterizer = MeshRasterizer(raster_settings=raster_settings)
@@ -33,16 +33,12 @@ class MaskRenderer(nn.Module):
         raster_settings_mask = RasterizationSettings(
             image_size=(H, W),
             blur_radius=0.0,
-            faces_per_pixel=50,
+            faces_per_pixel=10,
         )
 
         self.rasterizer = MeshRasterizer(raster_settings=raster_settings_mask)
         self.shader = SoftSilhouetteShader(blend_params=BlendParams(sigma=1e-4, gamma=1e-4))
-        
-        self.renderer = MeshRenderer(
-            rasterizer=self.rasterizer,
-            shader=self.shader
-        )
 
     def forward(self, mesh, cameras):
-        return self.renderer(mesh, cameras=cameras)
+        fragments = self.rasterizer(mesh, cameras=cameras)
+        return self.shader(fragments, mesh, cameras=cameras), fragments

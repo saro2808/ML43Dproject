@@ -1,6 +1,5 @@
 import glob
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image
 import torch
 import trimesh
@@ -25,7 +24,7 @@ def load_images(image_dir):
     return images
 
 
-def build_camera_from_replica(K, pose, H, W, device='cuda'):
+def build_cameras_from_poses(K, pose, H, W, device='cuda'):
     fx, fy = K[0,0], K[1,1]
     cx, cy = K[0,2], K[1,2]
     # cy = H - 1 - cy
@@ -78,20 +77,3 @@ def load_mesh(mesh_path, device='cuda'):
         faces=[faces_idx],
         textures=TexturesVertex(verts_features=verts_rgb[None])
     ).to(device)
-
-
-def plot_pair(img1, img2):
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-
-    # Display the first image
-    ax[0].imshow(img1)
-    # ax[0].set_title("First Image")
-    ax[0].axis('off') # Optional: hide axis ticks
-    
-    # Display the second image
-    ax[1].imshow(img2)
-    # ax[1].set_title("Second Image")
-    ax[1].axis('off')
-    
-    plt.tight_layout() # Adjust layout to prevent overlap
-    plt.show()
