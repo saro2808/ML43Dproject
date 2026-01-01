@@ -1,6 +1,6 @@
 from torch import nn
 from pytorch3d.renderer import (
-    RasterizationSettings, MeshRenderer, MeshRasterizer, SoftPhongShader, SoftSilhouetteShader, BlendParams
+    RasterizationSettings, MeshRenderer, MeshRasterizer, SoftSilhouetteShader, BlendParams, HardFlatShader
 )
 
 
@@ -11,11 +11,11 @@ class RgbRenderer(nn.Module):
         raster_settings = RasterizationSettings(
             image_size=(H, W),
             blur_radius=0.0,
-            faces_per_pixel=10,
+            faces_per_pixel=5,
         )
         
         self.rasterizer = MeshRasterizer(raster_settings=raster_settings)
-        self.shader = SoftPhongShader(device=device)
+        self.shader = HardFlatShader(device=device)
         
         self.renderer = MeshRenderer(
             rasterizer=self.rasterizer,
@@ -33,7 +33,7 @@ class MaskRenderer(nn.Module):
         raster_settings_mask = RasterizationSettings(
             image_size=(H, W),
             blur_radius=0.0,
-            faces_per_pixel=10,
+            faces_per_pixel=5,
         )
 
         self.rasterizer = MeshRasterizer(raster_settings=raster_settings_mask)

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from utils import load_mesh, load_poses, load_images, load_intrinsics, build_cameras_from_poses
+from utils import load_mesh, load_poses, load_images, load_intrinsics, get_opencv_cameras_batch
 from renderer import RgbRenderer, MaskRenderer
 
 
@@ -29,8 +29,9 @@ class SceneDataset(torch.utils.data.Dataset):
         # camera intrinsics
         K = load_intrinsics(root_path / scene_name / "intrinsics.txt")
         H, W, _ = self.images[0].shape  # (360, 640, 3)
+        
         self.cameras = [
-            build_cameras_from_poses(K, pose, H, W) for pose in poses
+            get_opencv_cameras_batch(pose[None], H, W, K).to(device) for pose in poses
         ]
 
         self.rgb_renderer = RgbRenderer(H, W, device)

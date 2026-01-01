@@ -3,8 +3,9 @@ import numpy as np
 from PIL import Image
 import torch
 import trimesh
-from pytorch3d.renderer import PerspectiveCameras, TexturesVertex
+from pytorch3d.renderer import TexturesVertex
 from pytorch3d.structures import Meshes
+from pytorch3d.utils import cameras_from_opencv_projection
 
 
 def load_intrinsics(path):
@@ -24,37 +25,32 @@ def load_images(image_dir):
     return images
 
 
-def build_cameras_from_poses(K, pose, H, W, device='cuda'):
-    fx, fy = K[0,0], K[1,1]
-    cx, cy = K[0,2], K[1,2]
-    # cy = H - 1 - cy
+def get_opencv_cameras_batch(poses, img_height, img_width, intrinsic_mat):
+    R = torch.tensor(poses[:, :3, :3], dtype=torch.float32)
+    T = torch.tensor(poses[:, :3, 3], dtype=torch.float32).unsqueeze(-1)  # (B,3,1)
 
-    Rcw = pose[:3,:3]
-    tcw = pose[:3,3]
+    R = R.transpose(1, 2)
+    T = -torch.bmm(R, T).squeeze(-1)   # back to (B,3)
 
-    # R=Rcw
-    # T=tcw
-    R = Rcw.T
-    T = -R @ tcw
+    bsize = R.shape[0]
 
-    # cv2_to_p3d = np.array([
-    #     [1,  0,  0],
-    #     [0, -1,  0],
-    #     [0,  0, -1]
-    # ], dtype=np.float32)
+    # create camera with opencv function
+    image_size = torch.Tensor((img_height, img_width))
+    image_size_repeat = torch.tile(image_size.reshape(-1, 2), (bsize, 1))
+    intrinsic_repeat = torch.Tensor(intrinsic_mat).unsqueeze(0).expand(bsize, -1, -1)
     
-    # R = cv2_to_p3d @ R
-    # T = cv2_to_p3d @ T
-
-    return PerspectiveCameras(
-        focal_length=((fx, fy),),
-        principal_point=((cx, cy),),
-        image_size=((H, W),),
-        R=torch.tensor(R)[None].float().to(device),
-        T=torch.tensor(T)[None].float().to(device),
-        device=device,
-        in_ndc=False        # important!
+    opencv_cameras = cameras_from_opencv_projection(
+        # N, 3, 3
+        R=R,
+        # N, 3
+        tvec=T,
+        # N, 3, 3
+        camera_matrix=intrinsic_repeat,
+        # N, 2 h,w
+        image_size=image_size_repeat
     )
+
+    return opencv_cameras
 
 
 def load_mesh(mesh_path, device='cuda'):
