@@ -16,7 +16,7 @@ def load_intrinsics(path):
 def load_poses(pose_dir):
     pose_files = sorted(glob.glob(str(pose_dir) + "/*.txt"))
     poses = [np.loadtxt(f) for f in pose_files]
-    return poses
+    return np.array(poses)
 
 
 def load_images(image_dir):
@@ -25,7 +25,7 @@ def load_images(image_dir):
     return images
 
 
-def get_opencv_cameras_batch(poses, img_height, img_width, intrinsic_mat):
+def get_opencv_cameras_batch(poses, img_height, img_width, intrinsic_mat, device="cuda"):
     R = torch.tensor(poses[:, :3, :3], dtype=torch.float32)
     T = torch.tensor(poses[:, :3, 3], dtype=torch.float32).unsqueeze(-1)  # (B,3,1)
 
@@ -40,14 +40,10 @@ def get_opencv_cameras_batch(poses, img_height, img_width, intrinsic_mat):
     intrinsic_repeat = torch.Tensor(intrinsic_mat).unsqueeze(0).expand(bsize, -1, -1)
     
     opencv_cameras = cameras_from_opencv_projection(
-        # N, 3, 3
-        R=R,
-        # N, 3
-        tvec=T,
-        # N, 3, 3
-        camera_matrix=intrinsic_repeat,
-        # N, 2 h,w
-        image_size=image_size_repeat
+        R=R.to(device),  # N, 3, 3
+        tvec=T.to(device),  # N, 3
+        camera_matrix=intrinsic_repeat.to(device),  # N, 3, 3
+        image_size=image_size_repeat.to(device)  # N, 2 h,w
     )
 
     return opencv_cameras

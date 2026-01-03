@@ -11,7 +11,7 @@ class RgbRenderer(nn.Module):
         raster_settings = RasterizationSettings(
             image_size=(H, W),
             blur_radius=0.0,
-            faces_per_pixel=5,
+            faces_per_pixel=3,
         )
         
         self.rasterizer = MeshRasterizer(raster_settings=raster_settings)
@@ -33,7 +33,7 @@ class MaskRenderer(nn.Module):
         raster_settings_mask = RasterizationSettings(
             image_size=(H, W),
             blur_radius=0.0,
-            faces_per_pixel=5,
+            faces_per_pixel=1,
         )
 
         self.rasterizer = MeshRasterizer(raster_settings=raster_settings_mask)
