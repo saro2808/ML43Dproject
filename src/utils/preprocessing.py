@@ -2,7 +2,6 @@ import glob
 import numpy as np
 from PIL import Image
 import torch
-import trimesh
 from pytorch3d.renderer import TexturesVertex
 from pytorch3d.structures import Meshes
 from pytorch3d.utils import cameras_from_opencv_projection
@@ -45,15 +44,13 @@ def get_opencv_cameras_batch(poses, img_height, img_width, intrinsic_mat, device
         camera_matrix=intrinsic_repeat.to(device),  # N, 3, 3
         image_size=image_size_repeat.to(device)  # N, 2 h,w
     )
-
     return opencv_cameras
 
 
 def load_mesh(mesh_path, device='cuda'):
-    # Load with trimesh (handles polygonal faces)
-    mesh_tm = trimesh.load(mesh_path, process=False)
+    from trimesh import load
+    mesh_tm = load(mesh_path, process=False)
     
-    # vertices and faces
     verts_pos = torch.tensor(mesh_tm.vertices, dtype=torch.float32)
     faces_idx = torch.tensor(mesh_tm.faces, dtype=torch.long)
     
@@ -63,7 +60,6 @@ def load_mesh(mesh_path, device='cuda'):
     else:
         verts_rgb = torch.ones_like(verts_pos, device=device)  # fallback to white
     
-    # Create PyTorch3D mesh
     return Meshes(
         verts=[verts_pos],
         faces=[faces_idx],
