@@ -1,0 +1,23 @@
+{
+    "model": {
+        "lora_r": 16,
+        "lora_alpha": 16,
+        "lora_dropout": 0.05,
+        "finetune_vision": true
+    },
+    "dataset": {
+        "max_samples_per_scene": 1000,
+        "negative_prob": 0.5,
+        "max_pairs_per_instance": 10,
+        "seed": 0,
+        "prompt": "Do these two image regions belong to the same physical object in the 3D scene? Answer yes or no."
+    },
+    "trainer": {
+        "batch_size": 2,
+        "grad_accum": 4,
+        "learning_rate": 2e-4,
+        "epochs": 4,
+        "fp16": true,
+        "logging_steps": 20
+    }
+}

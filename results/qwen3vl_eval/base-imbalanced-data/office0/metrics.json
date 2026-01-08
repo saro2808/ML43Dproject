@@ -1,0 +1,9 @@
+{
+  "accuracy": 0.789,
+  "precision": 0.7364864864864865,
+  "recall": 0.8879837067209776,
+  "num_samples": 1000,
+  "num_total_attempts": 1000,
+  "num_ambiguous_raw": 0,
+  "ambiguity_rate": 0.0
+}

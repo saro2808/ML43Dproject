@@ -4,12 +4,24 @@ import copy
 import torch
 
 
+def ensure_metadata(messages):
+    for msg in messages:
+        msg.setdefault("metadata", {})
+        if "content" in msg and isinstance(msg["content"], list):
+            for c in msg["content"]:
+                if isinstance(c, dict):
+                    c.setdefault("metadata", {})
+    return messages
+
+
 def qwen_vl_collate_fn(batch, tokenizer):
     """Collate function for Qwen3-VL."""    
     texts = []
     images = []
     
-    for messages in batch:
+    for item in batch:
+        messages = item["messages"]
+        messages = ensure_metadata(messages)
         text = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -28,7 +40,11 @@ def qwen_vl_collate_fn(batch, tokenizer):
         padding=True,
     )
     # Return BOTH the processed tensors and the original raw messages
-    return {"inputs": inputs, "raw_batch": batch}
+    return {
+        "inputs": inputs,
+        "raw_batch": [item["messages"] for item in batch],
+        "meta": [item["meta"] for item in batch],
+    }
 
 
 def parse_yes_no(text):

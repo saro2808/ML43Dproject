@@ -10,31 +10,30 @@ from src.utils.preprocessing import load_mesh, load_poses, load_intrinsics, get_
 from src.data.renderer import RgbRenderer, MaskRenderer
 
 
-root_path = Path("data")
-
-
 class ScenePreprocessor:
     """Class to produce and save views/masks for a given scene."""
 
-    def __init__(self, scene_name, batch_size=5, device="cuda"):
+    def __init__(self, replica_path, processed_path, scene_name, img_height, img_width, batch_size=5, device="cuda"):
 
+        self.replica_path = Path(replica_path)
+        self.processed_path = Path(processed_path)
         self.scene_name = scene_name
         self.device = device
 
         self.B = batch_size
         
-        self.mesh = load_mesh(root_path / "replica" / scene_name / f'{scene_name}_mesh.ply', device)
+        self.mesh = load_mesh(self.replica_path / scene_name / f'{scene_name}_mesh.ply', device)
 
         # not to build meshes_batch every time in get_batch
         self.meshes_batch = self._build_mesh_batch(self.B)
         
         self.face_to_instance = self._map_face_to_instance(self.mesh.faces_packed())
 
-        self.poses = load_poses(root_path / "replica" / scene_name / "poses")
+        self.poses = load_poses(self.replica_path / scene_name / "poses")
         
         # camera intrinsics
-        self.K = load_intrinsics(root_path / "replica" / scene_name / "intrinsics.txt")
-        self.H, self.W = 360, 640
+        self.K = load_intrinsics(self.replica_path / scene_name / "intrinsics.txt")
+        self.H, self.W = img_height, img_width
 
         self.rgb_renderer = RgbRenderer(self.H, self.W, device)
         self.mask_renderer = MaskRenderer(self.H, self.W, device)
@@ -104,7 +103,7 @@ class ScenePreprocessor:
         
     
     def _map_face_to_instance(self, faces):
-        vert_to_instance = np.loadtxt(root_path / "replica/ground_truth" / f"{self.scene_name}.txt")
+        vert_to_instance = np.loadtxt(self.replica_path / "ground_truth" / f"{self.scene_name}.txt")
         vert_to_instance = torch.tensor(vert_to_instance, device=self.device).long()
         # lookup vertex labels → (F, 3)
         face_vertex_instances = vert_to_instance[faces]
@@ -134,7 +133,7 @@ class ScenePreprocessor:
 
 
     def _save_rgb_tensor_and_mask(self, rgb_image, mask, unique_instances, index):
-        path = root_path / "processed" / self.scene_name / str(index)
+        path = self.processed_path / self.scene_name / str(index)
         path.mkdir(parents=True, exist_ok=True)
         
         img = rgb_image.detach().cpu()
@@ -149,11 +148,21 @@ class ScenePreprocessor:
 
 if __name__ == '__main__':
     import gc
+    from src.configs.schema import BaseConfig
+    from src.utils.setup_utils import load_config
+
+    base_cfg = load_config(BaseConfig, "src/configs/base.json")
     
-    scenes = ["office0", "office1", "office2", "office3", "office4", "room0", "room1", "room2"]
+    scenes = base_cfg.scenes.train + base_cfg.scenes.eval
     for scene in scenes:
         print(f"Processing scene {scene}.")
-        preprocessor = ScenePreprocessor(scene)
+        preprocessor = ScenePreprocessor(
+            base_cfg.paths.raw_replica,
+            base_cfg.paths.processed_root,
+            scene,
+            base_cfg.camera.height,
+            base_cfg.camera.width
+        )
         preprocessor.process_all_views()
         # clear memory and cache
         del preprocessor

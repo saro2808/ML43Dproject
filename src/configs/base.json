@@ -1,0 +1,18 @@
+{
+    "project_name": "qwen3vl_replica_alignment",
+    "paths": {
+        "raw_replica": "data/replica",
+        "processed_root": "data/processed",
+        "colab_results": "/content/drive/MyDrive/qwen3vl_eval",
+        "local_results": "./results/qwen3vl_eval"
+    },
+    "camera": {
+        "height": 360,
+        "width": 640
+    },
+    "scenes": {
+        "train": ["office0", "office1", "office2", "office3", "room0", "room1"],
+        "eval": ["office4", "room2"]
+    },
+    "base_model": "unsloth/Qwen3-VL-8B-Instruct-unsloth-bnb-4bit"
+}
