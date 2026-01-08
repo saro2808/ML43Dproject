@@ -1,0 +1,25 @@
+# --- Environment Specs ---
+# Python 3.12 (Colab Default 2026)
+# NumPy 2.0.2
+
+# --- Core ML & Unsloth ---
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch==2.9.0
+transformers==4.57.1
+trl==0.22.2
+unsloth
+unsloth_zoo
+xformers==0.0.33.post1
+bitsandbytes
+accelerate
+peft
+
+# --- 3D & Data (Colab Versions) ---
+pytorch3d==0.7.8
+numpy==2.0.2
+scipy==1.16.3
+sympy==1.14.0
+pydantic==2.12.3
+pydantic-settings==2.12.0
+datasets==4.3.0
+trimesh==4.10.1
