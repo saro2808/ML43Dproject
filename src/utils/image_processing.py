@@ -5,6 +5,7 @@ import random
 
 
 def load_view(view_dir):
+    view_dir = Path(view_dir)
     rgb = Image.open(view_dir / "rgb.png").convert("RGB")
     mask = np.load(view_dir / "instance_mask.npy")
     return rgb, mask

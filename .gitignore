@@ -1,3 +1,29 @@
 __pycache__
 .ipynb_checkpoints
 /data
+
+# Core LaTeX build files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+
+# Bibliography files
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+
+# TikZ/PGFPlots externalization
+*.md5
+*.dpth
+*.dep
+
+# Standalone PDFs (if you want them re-rendered on other machines)
+# Only include this if you want people to compile from source
+project_report/diagrams/*.pdf
+project_report/diagrams/*.aux
+project_report/diagrams/*.log

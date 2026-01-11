@@ -16,7 +16,7 @@
         "batch_size": 2,
         "grad_accum": 4,
         "learning_rate": 2e-4,
-        "epochs": 4,
+        "epochs": 2,
         "fp16": true,
         "logging_steps": 20
     }

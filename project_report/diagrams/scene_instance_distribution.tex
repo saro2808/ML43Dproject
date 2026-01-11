@@ -1,0 +1,29 @@
+\pgfplotsset{cycle list/Set1-8} % Add this line here
+\begin{tikzpicture}
+    \begin{axis}[
+        width=\linewidth, % Scaled to the container in main.tex
+        height=7cm,
+        ymode=log,
+        log origin=infty,          % Helps with log scale boundaries
+        filter discard warning=false, % Suppresses warnings about 0s
+        unbounded coords=discard,  % Skips values that can't be plotted
+        xlabel={Instance Rank (by size)},
+        ylabel={Number of Vertices},
+        grid=major,
+        grid style={dashed, gray!30},
+        legend pos=north east,
+        legend style={font=\tiny, cells={anchor=west}},
+        legend columns=2,
+        cycle list name=Set1-8, % Uses the 'Set1' palette with 8 distinct colors
+        % cycle list name=colorbrewer-qualitative,
+        no markers,
+        thick,
+        xmin=0,
+    ]
+        % Automation loop to plot all 8 scenes
+        \foreach \s in {office0, office1, office2, office3, office4, room0, room1, room2} {
+            \addplot table [col sep=comma, x=rank, y=size] {diagrams/data/plot_data_\s.csv};
+            \addlegendentryexpanded{\s}
+        }
+    \end{axis}
+\end{tikzpicture}

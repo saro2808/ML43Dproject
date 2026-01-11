@@ -4,15 +4,20 @@ import json
 import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
-def run_aggregation():
+from src.configs.schema import BaseConfig
+from src.utils.setup_utils import load_config
+
+
+def run_aggregation(mode):
     all_preds = []
     all_gts = []
     failures = []
 
     cfg = load_config(BaseConfig, "src/configs/base.json")
     results_path = cfg.paths.local_results
+    results_path = os.path.join(results_path, mode)
     eval_scenes = cfg.scenes.eval
-    
+
     for scene_name in eval_scenes:
         # Construct the path for each specific eval scene
         scene_path = os.path.join(results_path, scene_name)
@@ -32,7 +37,7 @@ def run_aggregation():
                     sorted_ids = sorted([data["inst_i"], data["inst_j"]])
                     
                     failures.append({
-                        "scene": office_name,
+                        "scene": scene_name,
                         "inst_i": sorted_ids[0],
                         "inst_j": sorted_ids[1],
                         "type": "False Positive" if pred == 1 else "False Negative"
@@ -66,4 +71,7 @@ def run_aggregation():
         print("No failures found.")
 
 if __name__ == "__main__":
-    run_aggregation()
+    for mode in ["base", "lora"]:
+        print('mode:', mode)
+        run_aggregation(mode)
+        print('\n\n')

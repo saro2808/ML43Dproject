@@ -1,0 +1,447 @@
+\documentclass[a4paper,12pt]{amsart}
+
+\usepackage{standalone}
+\usepackage[a4paper,margin=0.8in,headheight=15pt,footskip=20pt]{geometry}
+\usepackage{setspace}
+\setstretch{1.1} % Adds breathing room between lines
+% \usepackage{parskip} % Adds space between paragraphs
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{makecell} % Useful for manual line breaks in cells
+
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{amsmath}
+% \usepackage{amsfonts}
+\usepackage{amsaddr} % Adds affiliations under names on the front page
+\usepackage{bbm}
+\usepackage{dsfont}
+
+\usepackage{enumitem}
+\usepackage{diagbox}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{listings}
+\usepackage{threeparttable}
+
+% Jupyter-style colors
+\definecolor{jp_comment}{RGB}{64, 128, 128}
+\definecolor{jp_keyword}{RGB}{0, 128, 0}
+\definecolor{jp_string}{RGB}{186, 33, 33}
+\definecolor{jp_background}{RGB}{247, 247, 247}
+\definecolor{jp_numbers}{RGB}{151, 151, 151}
+
+\lstset{
+  language=Python,
+  backgroundcolor=\color{jp_background},
+  basicstyle=\ttfamily\small\color{black},
+  keywordstyle=\color{jp_keyword}\bfseries,
+  commentstyle=\color{jp_comment}\itshape,
+  stringstyle=\color{jp_string},
+  numbers=left,
+  numberstyle=\tiny\color{jp_numbers},
+  stepnumber=1,
+  numbersep=8pt,
+  frame=none,               % Jupyter usually doesn't have a full frame
+  xleftmargin=2em,          % Space for numbers
+  breaklines=true,
+  showstringspaces=false,
+  upquote=true              % Makes straight quotes in strings
+}
+
+% \usepackage{graphicx}
+% \usepackage{float}
+% \usepackage{wrapfig}
+\usepackage{pgfplots}
+\usepgfplotslibrary{colorbrewer}
+\pgfplotsset{
+    compat=1.18,
+    % This line "initializes" the colorbrewer schemes
+    layers/standard/extensions/.cd,
+}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
+
+\usepackage{url}
+\usepackage{hyperref}
+
+\pagestyle{myheadings}
+\thispagestyle{empty}
+
+\usepackage[backend=biber, style=numeric]{biblatex} % style=numeric is common for arXiv
+\addbibresource{refs.bib}
+
+\DeclareFieldFormat[article,book,inbook,incollection,inproceedings,patent,thesis,unpublished]{title}{\textit{#1}}
+
+\title{A VLM-Based Approach for 2D Mask Grouping Across Views}
+
+\author{Saro Harutyunyan, Edoardo Calderoni \and Valentin Brevet}
+\address{TUM School of Computation, Information and Technology \\ Technical University of Munich}
+\thanks{Project submitted for the course: Machine Learning for 3D Geometry.}
+\email{sarhar.fortum@gmail.com, edoardo.calderoni@tum.de, valibrevet94@gmail.com}
+
+\begin{document}
+
+\keywords{Vision-Language Models, Instance Segmentation, Multi-view Consistency, 3D Scene Understanding, LoRA Fine-tuning, Replica Dataset}
+
+\begin{abstract}
+We explore the use of large Vision-Language Models (VLMs) for the task of cross-view 2D instance mask grouping,
+aiming to associate object masks observed in multiple camera views into consistent 3D instances. Using the Replica
+indoor dataset, we formulate mask grouping as a binary visual reasoning problem: given two cropped instance masks
+from different views, determine whether they correspond to the same underlying 3D object. We establish a baseline
+using the pretrained Qwen3-VL model and subsequently fine-tune it using LoRA adapters, without modifying the base
+model weights. Our experiments on held-out scenes demonstrate that LoRA fine-tuning improves mask ID consistency
+highlighting the potential of VLMs for geometry-aware instance association without explicit 3D supervision.
+The codebase is available at \url{https://github.com/saro2808/ML43Dproject}.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+
+Instance-level scene understanding is a core challenge in 3D perception \cite{Qi_2017_CVPR}. While modern pipelines
+often rely on explicit geometric reasoning — such as point cloud clustering or hierarchical feature aggregation methods
+(e.g., PointNet++ \cite{qi2017pointnetdeephierarchicalfeature}) — these approaches typically require dense reconstruction
+and carefully designed heuristics \cite{schult2023mask3dmasktransformer3d}. In contrast, recent Vision-Language Models (VLMs)
+have shown remarkable zero-shot reasoning abilities across images \cite{pmlr-v139-radford21a, kirillov2023segment},
+suggesting they may implicitly capture object identity cues such as shape, texture, and semantic consistency
+\cite{oquab2024dinov, zhang-etal-2025-vlm2}.
+
+In this work, we investigate whether a VLM can be trained to group 2D instance masks across views into consistent 3D
+object identities. Instead of predicting explicit correspondences or embeddings, we frame the problem as a binary
+question-answering task: Do these two image crops correspond to the same object?
+
+Our contributions are:
+\begin{enumerate}
+    \item a VLM-compatible formulation of multi-view 2D mask grouping using the Replica dataset,
+    \item a baseline evaluation of pretrained Qwen3-VL~\cite{bai2025qwen3vltechnicalreport} on this task,
+    \item a lightweight LoRA fine-tuning strategy that improves consistency without updating base weights.
+    % \item a detailed evaluation protocol that accounts for ambiguous VLM outputs.
+\end{enumerate}
+
+
+\section{Dataset and Preprocessing}
+
+\subsection{Replica Dataset}
+
+We use the Replica dataset, a photorealistic indoor dataset with high-quality meshes, camera trajectories,
+and per-vertex instance annotations. Replica provides an ideal testbed for studying multi-view instance consistency
+under controlled conditions.
+
+Eight scenes are available: 5 offices and 3 rooms. Given that object distributions do not vary drastically across scenes
+(see~Figure~\ref{fig:scene_instance_distribution}) we split the dataset as follows:
+\begin{itemize}
+    \item 6 training scenes (4 offices and 2 rooms): used for LoRA fine-tuning,
+    \item 2 evaluation scenes (1 office and 1 room): office4 and room2.
+\end{itemize}
+
+Inspecting Figure~\ref{fig:scene_instance_distribution} one may observe that the distributions of office4 and room2
+are pretty much in the middle of the others, which justifies their usage as evaluation scenes.
+
+\begin{figure}[htbp]
+    \centering
+    \input{diagrams/scene_instance_distribution.tex}
+    \caption{Distribution of instance sizes (vertex counts) across the Replica dataset. The logarithmic scale reveals a consistent long-tail distribution across both office and room environments.}
+    \label{fig:scene_instance_distribution}
+\end{figure}
+
+\subsection{Multi-View Rendering and Instance Mask Generation}
+
+For each scene, we render multi-view RGB images and instance masks using PyTorch3D. Each view is generated from the original camera poses and intrinsics provided by Replica.
+
+Key steps:
+\begin{itemize}
+    \item load the textured mesh and camera parameters,
+    \item render RGB images using a flat shader,
+    \item render instance masks by mapping rendered faces to ground-truth instance IDs via majority voting over vertex
+    labels (see~Figure~\ref{fig:pixel_mapping}).
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includestandalone[width=0.7\textwidth]{diagrams/mask_creation} % no extension needed
+    \caption{Hierarchical mapping from 2D pixels to 3D instance labels using renderer metadata and majority voting.}
+    \label{fig:pixel_mapping}
+\end{figure}
+
+Each rendered view is saved as:
+\begin{itemize}
+    \item \texttt{rgb.png}: the RGB image,
+    \item \texttt{instance\_mask.npy}: per-pixel instance IDs,
+    \item \texttt{unique\_instances.npy}: list of visible instance IDs.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/rgb_and_mask.png}
+    \caption{Visualization of RGB image and instance mask.}
+    \label{fig:rgb_mask}
+\end{figure}
+
+\subsection{Instance Pair Construction}
+
+To train and evaluate the VLM, we construct pairs of instance crops:
+\begin{itemize}
+    \item two views are sampled;
+    \item a shared instance ID defines a positive pair,
+    \item a different instance ID defines a negative pair.
+\end{itemize}
+
+When constructing the dataset for a given scene we build a map giving for each instance ID the view pairs containing
+that instance. However, to combat instance imbalance we bound the number of view pairs for each instance by 10.
+Moreover, for the same reason dataset items are sampled uniformly over instance IDs.
+
+Each instance crop is extracted by tightly bounding the corresponding mask region. We add a small padding of width
+10 pixels to make the crops less abrupt and provide the VLM with more local context around the object boundaries.
+The resulting pair is packaged into a VLM-style prompt:
+
+\begin{quote}
+    \textbf{Input:} $(\text{Crop}_1, \text{Crop}_2)$ + \textit{``Do these two image regions belong to the same physical object in the 3D scene? Answer yes or no."} \\
+    \textbf{Output:} $\{\text{Yes, No}\}$
+\end{quote}
+
+This formulation removes the need for explicit geometric reasoning during inference.
+
+
+\section{Model and Training}
+
+\subsection{Base Model: Qwen3-VL}
+
+We use Qwen3-VL-8B, the Qwen variant with 8B total parameters, a large Vision-Language Model capable of
+multi-image reasoning. The base model is evaluated without any fine-tuning to establish a baseline for zero-shot performance.
+
+\subsection{LoRA Fine-Tuning}
+
+To adapt the model to our task efficiently, we fine-tune Qwen3-VL using Low-Rank Adaptation (LoRA) \cite{hu2022lora}:
+\begin{itemize}
+    \item only LoRA adapters are trained; base model weights remain frozen;
+    \item vision, language, attention, and MLP modules are adapted;
+    \item 4 bit quantization is utilized.
+\end{itemize}
+
+This choice is motivated by:
+\begin{itemize}
+    \item limited GPU memory (Colab environment, one Tesla T4 GPU with 15GB RAM),
+    \item desire to preserve general VLM capabilities,
+    \item faster training and reduced storage requirements.
+\end{itemize}
+
+Training is performed for 2 epochs with 1000 samples from each train scene, which we found sufficient
+to observe measurable improvements.
+
+\begin{table}[htbp]
+    \centering
+    \small % Slightly smaller font to ensure they fit side-by-side
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \caption{LoRA Hyperparameters}
+        \label{tab:lora_params}
+        \begin{tabular}{l c}
+            \toprule
+            \textbf{Parameter} & \textbf{Value} \\
+            \midrule
+            LoRA rank ($r$) & 16 \\
+            LoRA alpha & 16 \\
+            LoRA dropout & 0.05 \\
+            Learning rate & $2 \times 10^{-4}$ \\
+            Batch size & 2 \\
+            Grad. accum. & 4 \\
+            Epochs & 2 \\
+            FP16 & Yes \\
+            \bottomrule
+        \end{tabular}
+    \end{minipage}
+    \hfill % Adds spacing between the two minipages
+    \begin{minipage}{0.48\textwidth}
+        \centering
+        \caption{Dataset Configuration}
+        \label{tab:dataset_cfg}
+        \begin{tabular}{l c}
+            \toprule
+            \textbf{Parameter} & \textbf{Value} \\
+            \midrule
+            Max train samples & $6\times 1000$ \\
+            Max eval samples & $2\times 300$ \\
+            Neg. pair prob. & 0.5 \\
+            % Max view pairs & 10 \\
+            \\ % Empty lines to balance height
+            \\
+            \bottomrule
+        \end{tabular}
+        
+    \end{minipage}
+\end{table}
+
+\subsection{Training Stability and Checkpointing}
+
+Given the constraints of Colab (session crashes, limited disk space), we:
+\begin{itemize}
+    \item periodically save checkpoints to Google Drive,
+    \item overwrite the previous checkpoint to conserve storage,
+    \item train for a fixed small number of epochs rather than early stopping.
+\end{itemize}
+
+While intermediate evaluation during training could be added, the limited training duration makes validation
+loops less critical in this setting.
+
+
+\section{Evaluation Protocol}
+
+\subsection{Metrics}
+
+We evaluate performance by tracking accuracy, precision, recall and ambiguity rate (fraction of samples where
+the model fails to clearly answer “Yes” or “No”). Ambiguous outputs are handled explicitly:
+\begin{itemize}
+    \item attempt to parse the model's response;
+    \item retry with a forced instruction (``Answer with exactly one word: Yes or No.");
+    \item if still ambiguous, count the sample as ambiguous and force an incorrect prediction.
+\end{itemize}
+
+This protocol avoids artificially inflated accuracy due to skipped samples.
+
+Remarkably, phrasing the problem as binary classification makes evaluation much easier than if we were
+to give more than two crops to the VLM and ask to group them (a substantial difficulty could arise from parsing
+VLM's output).
+
+\subsection{Scenes and Setup}
+
+Evaluation is conducted on the scenes \textbf{office4} and \textbf{room2}. For each scene,
+300 instance pairs are evaluated with resume support, ensuring robustness to interruptions.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Performance Comparison of Base and LoRA-tuned Models}
+    \label{tab:model_performance}
+    \begin{tabular}{llcccc}
+        \toprule
+        \textbf{Scene} & \textbf{Model} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{Ambiguity Rate} \\
+        \midrule
+        office4 & Base Qwen3-VL & 0.74 & 0.67 & 0.88 & 0.00 \\
+        office4 & LoRA-tuned    & 0.82 & 0.76 & 0.92 & 0.00 \\
+        \addlinespace % Adds a small gap to separate scene groups
+        room2   & Base Qwen3-VL & 0.80 & 0.76 & 0.91 & 0.00 \\
+        room2   & LoRA-tuned    & 0.92 & 0.91 & 0.94 & 0.00 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+
+\section{Results and Discussion}
+
+\subsection{Baseline Performance}
+
+The base Qwen3-VL model demonstrates acceptably good performance, suggesting that large VLMs encode rich
+visual priors about object identity. Surprisingly, the model is quite assertive in its answers — we observe
+zero ambiguous responses (possibly after retrying with more forceful prompt). This attests to the model's
+high confidence and lack of hedge-word bias, even when its predictions are technically incorrect.
+However, there is clearly room for improvement, especially with hard negatives.
+
+\subsection{Effect of LoRA Fine-Tuning}
+
+After LoRA fine-tuning:
+\begin{itemize}
+    \item accuracy and precision improve considerably, especially for negative pairs,
+    \item recall improves mildly.
+\end{itemize}
+
+This suggests that LoRA fine-tuning helps the model internalize task-specific cues, such as instance-level
+shape consistency across views. Particularly, as we could anticipate, after fine-tuning too (similar to the base model)
+when given the prompt Qwen3-VL is firm in its answers (again, possibly after the forceful second prompt); there
+is no any ambiguity whatsoever. 
+
+\subsection{Failure Modes}
+
+Common failure cases include:
+\begin{itemize}
+    \item symmetric or repetitive objects (e.g. chairs, walls),
+    \item severe occlusions,
+    \item very small instance crops with limited visual context.
+\end{itemize}
+
+Another thing worth mentioning is the model's bias toward answering ``Yes" for difficult negative pairs
+(see~Table~\ref{tab:negative_pair_bias}):
+
+\begin{table}[htbp]
+    \centering
+    \caption{Mistake Rate on Negative Pairs}
+    \label{tab:negative_pair_bias}
+    \small % Slightly smaller font to help with spacing
+    \begin{tabularx}{0.72\textwidth}{llccc}
+        \toprule
+        \textbf{Scene} & \textbf{Model} & \textbf{Samples} &
+        \makecell[c]{\textbf{Mistakes on} \\ \textbf{Neg. Pairs}} & 
+        \makecell[c]{\textbf{Share of} \\ \textbf{Neg. Mistakes}} \\
+        \midrule
+        office4 & Base Qwen3-VL & 78 & 61 & 0.78 \\
+        office4 & LoRA-tuned    & 53 & 42 & 0.79 \\
+        \addlinespace
+        room2   & Base Qwen3-VL & 61 & 47 & 0.77 \\
+        room2   & LoRA-tuned    & 25 & 15 & 0.60 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+We present some difficult pairs in Appendix~\ref{sec:qual_vis}.
+
+
+% \section{Related Work (Suggested Discussion)}
+
+% You can briefly relate this work to:
+% \begin{itemize}
+%     \item Multi-view instance association in 3D reconstruction pipelines (e.g., OpenYOLO3D).
+%     \item Contrastive learning for instance correspondence.
+%     \item Recent work on VLMs for geometric reasoning and spatial understanding.
+% \end{itemize}
+
+% A key distinction is that our method avoids explicit 3D reasoning at inference time, relying instead on
+% learned visual semantics.
+
+\section{Conclusion}
+
+We present a VLM-based approach for grouping 2D instance masks across views, demonstrating that large
+Vision-Language Models can be adapted for geometric consistency tasks with minimal fine-tuning. Our
+results show that LoRA fine-tuning improves instance grouping accuracy and other related metrics, even with
+limited training data and compute. The key charcteristic of our approach is that it avoids explicit 3D
+reasoning at inference time, relying instead on learned visual semantics.
+
+Future work includes:
+\begin{itemize}
+    \item extending beyond binary decisions to clustering,
+    \item backprojecting the predicted 2D masks to reconstruct 3D instance masks.
+\end{itemize}
+
+
+\printbibliography
+
+\clearpage
+\appendix
+\section{Qualitative Visualizations}
+\label{sec:qual_vis}
+
+What follows are visualizations of pairs which were misclassified with the base Qwen3-VL but
+discriminated correctly with the fine-tuned one.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{images/hard_neg_pair_shape_0.png}
+    \includegraphics[width=\textwidth]{images/hard_neg_pair_shape_1.png}
+    \caption{A negative pair. Assumed difficuly: shape similarity.}
+    \label{fig:hard_neg_pair_one}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{images/hard_neg_pair_small_occl_0.png}
+    \includegraphics[width=\textwidth]{images/hard_neg_pair_small_occl_1.png}
+    \caption{A negative pair. Assumed difficuly: smallness and occlusion.}
+    \label{fig:hard_neg_pair_two}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{images/hard_pos_pair_chair_0.png}
+    \includegraphics[width=\textwidth]{images/hard_pos_pair_chair_1.png}
+    \caption{A positive pair. Assumed difficuly: symmetry and occlusion.}
+    \label{fig:hard_pos_pair_one}
+\end{figure}
+
+\end{document}
