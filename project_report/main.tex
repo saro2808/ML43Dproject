@@ -90,7 +90,7 @@ indoor dataset, we formulate mask grouping as a binary visual reasoning problem:
 from different views, determine whether they correspond to the same underlying 3D object. We establish a baseline
 using the pretrained Qwen3-VL model and subsequently fine-tune it using LoRA adapters, without modifying the base
 model weights. Our experiments on held-out scenes demonstrate that LoRA fine-tuning improves mask ID consistency
-highlighting the potential of VLMs for geometry-aware instance association without explicit 3D supervision.
+highlighting the potential of VLMs without explicit 3D reasoning at inference time.
 The codebase is available at \url{https://github.com/saro2808/ML43Dproject}.
 \end{abstract}
 
@@ -400,7 +400,7 @@ We present some difficult pairs in Appendix~\ref{sec:qual_vis}.
 We present a VLM-based approach for grouping 2D instance masks across views, demonstrating that large
 Vision-Language Models can be adapted for geometric consistency tasks with minimal fine-tuning. Our
 results show that LoRA fine-tuning improves instance grouping accuracy and other related metrics, even with
-limited training data and compute. The key charcteristic of our approach is that it avoids explicit 3D
+limited training data and compute. The key characteristic of our approach is that it avoids explicit 3D
 reasoning at inference time, relying instead on learned visual semantics.
 
 Future work includes:
@@ -424,7 +424,7 @@ discriminated correctly with the fine-tuned one.
     \centering
     \includegraphics[width=\textwidth]{images/hard_neg_pair_shape_0.png}
     \includegraphics[width=\textwidth]{images/hard_neg_pair_shape_1.png}
-    \caption{A negative pair. Assumed difficuly: shape similarity.}
+    \caption{A negative pair. Assumed difficulty: shape similarity.}
     \label{fig:hard_neg_pair_one}
 \end{figure}
 
@@ -432,7 +432,7 @@ discriminated correctly with the fine-tuned one.
     \centering
     \includegraphics[width=\textwidth]{images/hard_neg_pair_small_occl_0.png}
     \includegraphics[width=\textwidth]{images/hard_neg_pair_small_occl_1.png}
-    \caption{A negative pair. Assumed difficuly: smallness and occlusion.}
+    \caption{A negative pair. Assumed difficulty: smallness and occlusion.}
     \label{fig:hard_neg_pair_two}
 \end{figure}
 
@@ -440,7 +440,7 @@ discriminated correctly with the fine-tuned one.
     \centering
     \includegraphics[width=\textwidth]{images/hard_pos_pair_chair_0.png}
     \includegraphics[width=\textwidth]{images/hard_pos_pair_chair_1.png}
-    \caption{A positive pair. Assumed difficuly: symmetry and occlusion.}
+    \caption{A positive pair. Assumed difficulty: symmetry and occlusion.}
     \label{fig:hard_pos_pair_one}
 \end{figure}
 
