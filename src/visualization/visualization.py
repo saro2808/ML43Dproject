@@ -67,3 +67,61 @@ def remap_mask(mask):
     remapped_indices = np.searchsorted(labels, mask)
     # Preserve the -1 values using np.where
     return np.where(mask == -1, -1, remapped_indices)
+
+
+# Valentin's function
+def plot_imgs_color(img,mask,crop, instance_id, titles=None, is_negative=True):
+
+    imgs=[img, mask, crop]
+    def check_shape(img):
+        if len(img.shape) == 2:
+            return img
+        if len(img.shape) == 3:
+            if img.shape[-1] in [3, 4]:
+                return img
+            if img.shape[0] == 1:
+                return img[0]
+            if img.shape[-1] == 1:
+                return img[..., 0]
+        raise ValueError(f"""Shape mismatch. img is allowed to be only of one of the following
+                            shapes: H × W (grayscale), H × W × 3 (RGB) or H × W × 4 (RGBA).
+                            Your img has shape {img.shape}.""")
+    def to_numpy(img):
+        if isinstance(img, np.ndarray):
+            return img
+        if isinstance(img, Image.Image):
+            return np.array(img)
+        if isinstance(img, torch.Tensor):
+            return img.cpu().numpy()
+        raise TypeError("img should be either a numpy array, PIL Image or torch tensor.")
+    
+    imgs = [check_shape(to_numpy(img)) for img in imgs]
+    
+    inst = (imgs[1] == instance_id)
+    overlay = imgs[0].copy()
+    if is_negative:
+        overlay[inst] = (
+            overlay[inst] * (0.2) + np.array([255, 0, 0]) * 0.8
+        ).astype(np.uint8)
+    else:
+        overlay[inst] = (
+            overlay[inst] * (0.2) + np.array([0, 255, 0]) * 0.8
+        ).astype(np.uint8)
+    imgs[1] = overlay
+
+    if titles:
+        if len(titles) != len(imgs):
+            raise ValueError("There should be equally many images and titles.")
+    else:
+        titles = [f'image {i}' for i in range(len(imgs))]
+    
+    fig, ax = plt.subplots(1, len(imgs), figsize=(5*len(imgs), 5))
+
+    for i ,img in enumerate(imgs):
+        ax[i].imshow(img)
+        ax[i].axis("off") # hide axis ticks
+        ax[i].set_title(titles[i])
+    
+
+    plt.tight_layout() # Adjust layout to prevent overlap
+    plt.show()

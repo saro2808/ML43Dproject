@@ -1,0 +1,59 @@
+\begin{tikzpicture}[
+    node distance=1.2cm and 0.8cm, 
+    every node/.style={font=\small},
+    img/.style={draw, rounded corners, inner sep=0pt, fill=white},
+    box/.style={draw, rounded corners, minimum width=2.0cm, minimum height=1.0cm, align=center, fill=white},
+    arrow/.style={->, thick}
+]
+
+% --- 1. Define View Anchors First (to establish vertical center) ---
+\node[img] (mask1)
+    {\includegraphics[width=3.2cm]{images/pipeline/mask_office4_view14.png}};
+    
+\node[img, below=1.8cm of mask1] (mask2)
+    {\includegraphics[width=3.2cm]{images/pipeline/mask_office4_view64.png}};
+
+% --- 2. 3D scene (Now centered vertically between mask1 and mask2) ---
+% We use 1.2cm to give room for the RGB images shifting left
+\node[box, left=1.2cm of $(mask1.west)!0.5!(mask2.west)$] (scene) {Replica 3D\\(mesh)};
+
+% --- 3. View A Stack ---
+\node[img] (rgb1) at ([xshift=-0.7cm, yshift=0.7cm]mask1.center)
+    {\includegraphics[width=3.2cm]{images/pipeline/rgb_office4_view14.png}};
+\node[above=0.2cm of rgb1] {\textbf{View A}};
+
+% --- 4. View B Stack ---
+\node[img] (rgb2) at ([xshift=-0.7cm, yshift=0.7cm]mask2.center)
+    {\includegraphics[width=3.2cm]{images/pipeline/rgb_office4_view64.png}};
+\node[above=0.2cm of rgb2] {\textbf{View B}};
+
+% --- 5. Crops ---
+\node[img, right=1.2cm of rgb1] (crop1)
+    {\includegraphics[width=2.0cm]{images/pipeline/crop_office4_view14_object20017.png}};
+\node[img, right=1.2cm of rgb2] (crop2)
+    {\includegraphics[width=2.0cm]{images/pipeline/crop_office4_view64_object20017.png}};
+
+% --- 6. VLM box ---
+\node[box, right=0.8cm of $(crop1.east)!0.5!(crop2.east)$, minimum width=2.2cm] (vlm) {
+    \textbf{VLM}\\[-2pt]
+    \scriptsize Qwen3-VL\\
+    \scriptsize ``Same object?''
+};
+
+% --- 7. Output ---
+\node[box, right=0.6cm of vlm, minimum width=1.5cm] (out) {\textbf{Yes/No}};
+
+% --- Arrows ---
+% Arrows now originate from the scene and branch out symmetrically
+\draw[arrow] (scene.east) -- (rgb1.west); 
+\draw[arrow] (scene.east) -- (rgb2.west);
+
+\draw[arrow] (rgb1.east) -- (crop1.west);
+\draw[arrow] (rgb2.east) -- (crop2.west);
+
+\draw[arrow] (crop1.east) -- (vlm.160);
+\draw[arrow] (crop2.east) -- (vlm.200);
+
+\draw[arrow] (vlm) -- (out);
+
+\end{tikzpicture}

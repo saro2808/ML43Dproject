@@ -22,6 +22,11 @@ __pycache__
 *.dpth
 *.dep
 
+*.bak
+*.brf
+*.fls
+.DS_Store
+
 # Standalone PDFs (if you want them re-rendered on other machines)
 # Only include this if you want people to compile from source
 project_report/diagrams/*.pdf

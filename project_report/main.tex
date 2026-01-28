@@ -3,7 +3,7 @@
 \usepackage{standalone}
 \usepackage[a4paper,margin=0.8in,headheight=15pt,footskip=20pt]{geometry}
 \usepackage{setspace}
-\setstretch{1.1} % Adds breathing room between lines
+\setstretch{1.08} % Adds breathing room between lines
 % \usepackage{parskip} % Adds space between paragraphs
 \usepackage{booktabs}
 \usepackage{tabularx}
@@ -48,7 +48,7 @@
   upquote=true              % Makes straight quotes in strings
 }
 
-% \usepackage{graphicx}
+\usepackage{graphicx}
 % \usepackage{float}
 % \usepackage{wrapfig}
 \usepackage{pgfplots}
@@ -59,7 +59,7 @@
     layers/standard/extensions/.cd,
 }
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta, positioning}
+\usetikzlibrary{arrows.meta, positioning, calc}
 
 \usepackage{url}
 \usepackage{hyperref}
@@ -172,8 +172,8 @@ Each rendered view is saved as:
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.9\textwidth]{images/rgb_and_mask.png}
-    \caption{Visualization of RGB image and instance mask.}
+    \includegraphics[width=0.8\textwidth]{images/rgb_and_mask.png}
+    \caption{Visualization of the RGB image and instance mask.}
     \label{fig:rgb_mask}
 \end{figure}
 
@@ -192,14 +192,17 @@ Moreover, for the same reason dataset items are sampled uniformly over instance 
 
 Each instance crop is extracted by tightly bounding the corresponding mask region. We add a small padding of width
 10 pixels to make the crops less abrupt and provide the VLM with more local context around the object boundaries.
-The resulting pair is packaged into a VLM-style prompt:
-
-\begin{quote}
-    \textbf{Input:} $(\text{Crop}_1, \text{Crop}_2)$ + \textit{``Do these two image regions belong to the same physical object in the 3D scene? Answer yes or no."} \\
-    \textbf{Output:} $\{\text{Yes, No}\}$
-\end{quote}
-
+The resulting pair is packaged into a VLM-style prompt whether they refer to the same object in the 3D scene
+(see~Figure~\ref{fig:pipeline}).
 This formulation removes the need for explicit geometric reasoning during inference.
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{ % This ensures it fits the page width
+    \input{diagrams/pipeline}}
+    \caption{Overview of the proposed pipeline. Multi-view RGB images and instance masks are rendered from a 3D scene, cropped into instance-level regions, and evaluated by a Vision-Language Model via a binary query.}
+    \label{fig:pipeline}
+\end{figure}
 
 
 \section{Model and Training}
@@ -309,7 +312,7 @@ Evaluation is conducted on the scenes \textbf{office4} and \textbf{room2}. For e
 
 \begin{table}[htbp]
     \centering
-    \caption{Performance Comparison of Base and LoRA-tuned Models}
+    \caption{Performance Comparison of Base and LoRA-tuned Models (Rank-16)}
     \label{tab:model_performance}
     \begin{tabular}{llcccc}
         \toprule
@@ -340,13 +343,48 @@ However, there is clearly room for improvement, especially with hard negatives.
 After LoRA fine-tuning:
 \begin{itemize}
     \item accuracy and precision improve considerably, especially for negative pairs,
-    \item recall improves mildly.
+    \item recall improves mildly (or even worsens, see~Table~\ref{tab:hyperparam_tuning}).
 \end{itemize}
 
 This suggests that LoRA fine-tuning helps the model internalize task-specific cues, such as instance-level
 shape consistency across views. Particularly, as we could anticipate, after fine-tuning too (similar to the base model)
 when given the prompt Qwen3-VL is firm in its answers (again, possibly after the forceful second prompt); there
-is no any ambiguity whatsoever. 
+is no any ambiguity whatsoever.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Evaluation Results for Different Ranks and Learning Rates}
+    \label{tab:hyperparam_tuning}
+    \small
+    \begin{tabularx}{0.8\textwidth}{lllcccc}
+        \toprule
+        \textbf{Rank} &
+        \textbf{LR} &
+        \textbf{Scene} &
+        \textbf{Accuracy} &
+        \textbf{Precision} &
+        \textbf{Recall} &
+        \textbf{Ambiguity rate} \\
+        \midrule
+         8 & $2\cdot 10^{-4}$ & office4 & 0.82 & 0.75 & 0.92 & 0.00 \\
+         8 & $2\cdot 10^{-4}$ & room2   & 0.92 & 0.91 & 0.94 & 0.00 \\
+         8 & $2\cdot 10^{-5}$ & office4 & 0.82 & 0.83 & 0.77 & 0.00 \\
+         8 & $2\cdot 10^{-5}$ & room2   & 0.89 & 0.92 & 0.87 & 0.00 \\
+        \addlinespace
+        16 & $2\cdot 10^{-4}$ & office4 & 0.82 & 0.76 & 0.92 & 0.00 \\
+        16 & $2\cdot 10^{-4}$ & room2   & 0.92 & 0.91 & 0.94 & 0.00 \\
+        \addlinespace
+        32 & $2\cdot 10^{-4}$ & office4 & 0.84 & 0.82 & 0.84 & 0.00 \\
+        32 & $2\cdot 10^{-4}$ & room2   & 0.91 & 0.90 & 0.93 & 0.00 \\
+        \addlinespace
+        64 & $2\cdot 10^{-4}$ & office4 & 0.85 & 0.83 & 0.85 & 0.00 \\
+        64 & $2\cdot 10^{-4}$ & room2   & 0.92 & 0.93 & 0.91 & 0.00 \\
+        64 & $2\cdot 10^{-5}$ & office4 & 0.82 & 0.88 & 0.72 & 0.00 \\
+        64 & $2\cdot 10^{-5}$ & room2   & 0.89 & 0.95 & 0.83 & 0.00 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
 
 \subsection{Failure Modes}
 
@@ -362,7 +400,7 @@ Another thing worth mentioning is the model's bias toward answering ``Yes" for d
 
 \begin{table}[htbp]
     \centering
-    \caption{Mistake Rate on Negative Pairs}
+    \caption{Mistake Rate on Negative Pairs (Rank-16)}
     \label{tab:negative_pair_bias}
     \small % Slightly smaller font to help with spacing
     \begin{tabularx}{0.72\textwidth}{llccc}
